@@ -1,0 +1,20 @@
+# Python / uv
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Data (too large / generated — not versioned)
+data/raw/*
+data/warehouse/*
+data/exports/*
+!data/**/.gitkeep
+*.duckdb
+*.duckdb.wal
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
