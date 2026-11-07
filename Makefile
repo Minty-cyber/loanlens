@@ -2,11 +2,14 @@ DB := data/warehouse/loanlens.duckdb
 
 run_sql = uv run python -c "import duckdb; duckdb.connect('$(DB)', read_only=True).sql(open('$(1)').read()).show(max_rows=100)"
 
-.PHONY: profile build-raw build-staging \
+.PHONY: profile build build-raw build-staging \
         checks check-nulls check-types check-allowed-value check-range check-outlier check-consistency
 
 profile:
 	uv run python pipeline/profile_raw.py
+
+build:
+	uv run python pipeline/build_warehouse.py
 
 build-raw:
 	uv run python pipeline/build_warehouse.py --through 1
