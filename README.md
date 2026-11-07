@@ -124,23 +124,39 @@ Then in Power BI Desktop:
 Quality is checked in two places:
 
 1. **Profiling checks** (`sql/checks/`, `make checks`) on the raw data: missing values, type conversion, allowed values, ranges, outliers and cross-column consistency. Results are written up in [`docs/data_dictionary.md`](docs/data_dictionary.md).
-2. **Pipeline checks** (`pipeline/quality_checks.py`) after every build, stored in `mart.data_quality_results`. The pipeline stops if a hard check fails.
+2. **Pipeline checks** (`pipeline/quality_checks.py`) after every build: 16 checks, stored in `mart.data_quality_results`. The pipeline stops if a hard check fails, and nothing is exported.
 
-- **Hard checks (stop the pipeline):** row conservation, unique loan ids, no missing dimension keys, positive loan amounts, interest rate in range, known loan statuses, valid default flag, valid grades.
-- **Warnings (documented, not hidden):**
-  - 1 `dti` placeholder value (9999) and 7 other DTI values above 100
-  - 15 incomes below 5k and 65 above 1M
-  - 1,167 loans with revolving utilisation above 100%
-  - 70 loans with an implausible 6.00% interest rate in grades B–G
-  - about 1,550 early loans that were only partially funded
-  - about 10% of rows with a blank `mort_acc` (only in loans issued before 2013, when the field was not collected)
-  - incomplete recent cohorts (see limitations)
+**8 hard checks (stop the pipeline):** all pass on the current data.
+
+| Check | Rule |
+|---|---|
+| `row_conservation` | raw rows = fact rows + rejected rows |
+| `loan_id_unique` | one fact row per loan |
+| `no_null_foreign_keys` | every fact row joins to every dimension |
+| `loan_amount_positive` | requested amounts are present and positive |
+| `interest_rate_in_range` | interest rate between 0 and 40% |
+| `status_values_known` | only Fully Paid and Charged Off reach the fact table |
+| `default_flag_binary` | default flag is 0 or 1 |
+| `grades_valid` | grades are A to G |
+
+**8 warnings (documented, not hidden):** loans are flagged in `mart.fact_loans`, never removed.
+
+| Check | Loans | Meaning |
+|---|---|---|
+| `rejected_rows` | 0 | rows rejected in staging (see `stg.rejected_loans`) |
+| `dti_outliers` | 7 | debt-to-income above 100 (the one 9999 placeholder is set to NULL) |
+| `income_outliers` | 80 | annual income below 5k (15) or above 1M (65) |
+| `rate_anomalies` | 68 | interest rate of exactly 6.00% in grades B–G, a likely data error |
+| `over_credit_limit` | 1,167 | revolving utilisation above 100% |
+| `partially_funded` | 1,566 | installment below the payment on the requested amount |
+| `missing_mort_acc` | 37,795 | blank for loans issued before 2013, when the field was not collected |
+| `incomplete_recent_cohorts` | 248,704 | full term not ended by Dec 2016 (see limitations) |
 
 ## Assumptions and limitations
 
 - **Default means Charged Off.** The data has only two loan statuses, Fully Paid and Charged Off, so there is no late or current-loan view.
 - **Recent cohorts are biased.** Only loans that already finished are present. Charge-offs happen early and full repayment takes the whole term, so default rates are inflated for 2014–2015 and deflated for 2016. Loans are flagged as a *mature cohort* when their full term ended by December 2016 (36-month loans issued up to 2013, 60-month loans up to 2011); trend visuals use this flag.
-- **Loan amount is the exposure, with a caveat.** `loan_amnt` is the amount applied for. About 1,550 loans from 2008–2011 were only partially funded, so their exposure is slightly overstated. There is no funded amount or outstanding balance.
+- **Loan amount is the exposure, with a caveat.** `requested_amount` (`loan_amnt` in the source) is the amount applied for. 1,566 loans, mostly from 2008–2011, were only partially funded, so their exposure is slightly overstated. There is no funded amount or outstanding balance.
 - **Loss given default is an assumption.** The data has no recoveries, so the stress test treats it as an adjustable input. The 45% starting value is a placeholder, not a result.
 - **Address is excluded.** It is synthetic: 396,030 loans share only 10 ZIP codes, and states are unrelated to ZIP. Worse, **ZIP leaks the outcome**: three ZIP codes contain only charged-off loans and three only fully paid loans. Using it would be target leakage.
 - **Findings are single-factor comparisons.** Grade, interest rate, term and purpose overlap, so their effects are not additive.
