@@ -1,8 +1,9 @@
 DB := data/warehouse/loanlens.duckdb
+WINDOWS_EXPORT_DIR := /mnt/c/Users/JeffreyMintah/LoanLens/exports
 
 run_sql = uv run python -c "import duckdb; duckdb.connect('$(DB)', read_only=True).sql(open('$(1)').read()).show(max_rows=100)"
 
-.PHONY: profile build build-raw build-staging \
+.PHONY: profile build build-raw build-staging export-windows \
         checks check-nulls check-types check-allowed-value check-range check-outlier check-consistency
 
 profile:
@@ -16,6 +17,12 @@ build-raw:
 
 build-staging:
 	uv run python pipeline/build_warehouse.py --through 2
+
+export-windows:
+	mkdir -p $(WINDOWS_EXPORT_DIR)
+	cp data/exports/*.parquet $(WINDOWS_EXPORT_DIR)/
+	cp $(DB) $(WINDOWS_EXPORT_DIR)/../loanlens.duckdb
+	ls -lh $(WINDOWS_EXPORT_DIR) $(WINDOWS_EXPORT_DIR)/../loanlens.duckdb
 
 checks: check-nulls check-types check-allowed-value check-range check-outlier check-consistency
 
