@@ -173,7 +173,7 @@ Quality is checked in two places:
 
 ## Stack
 
-Python 3.13, uv, DuckDB, SQL (dbt-style CTEs), Parquet, Power BI (DAX).
+Python 3.13, uv, DuckDB, SQL, Parquet, Power BI (DAX).
 
 ## Data source
 
