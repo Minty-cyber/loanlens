@@ -80,10 +80,10 @@ loanlens/
 │   ├── export_for_powerbi.py
 │   └── run_pipeline.py
 ├── src/loanlens/                 package entry point
-├── powerbi/                      (planned)
-│   ├── dax/measures.dax          every measure, written once
-│   ├── theme/loanlens_theme.json
-│   └── LoanLens.pbip             added when the report is saved as a Power BI Project
+├── powerbi/
+│   ├── LoanLens.pbix             the three-page report
+│   ├── dax/measures.dax          every measure, relationship and what-if parameter
+│   └── theme/loanlens_theme.json report theme
 └── docs/
     ├── data_dictionary.md        columns, types, cleaning rules, quality check results
     ├── eda.md                    exploratory analysis and the staging decisions it led to
@@ -114,12 +114,18 @@ make eda         # every exploratory query, in order
 make eda-grade   # or any single query: see the Makefile for the full list
 ```
 
-Then in Power BI Desktop:
+Then in Power BI Desktop (Windows). If you work in WSL, `make export-windows` first copies the parquet files somewhere Windows can read them.
+
+**Open the finished report:** open `powerbi/LoanLens.pbix`, go to Transform data > Data source settings, point each source at your copy of `data/exports/`, and refresh.
+
+**Or rebuild it from scratch:**
 
 1. Get Data > Parquet, and load every file in `data/exports/`.
 2. Create the relationships listed at the top of `powerbi/dax/measures.dax`.
-3. Paste in the measures and create the two what-if parameters.
+3. Create the two what-if parameters and a `_Measures` table, then add the measures.
 4. Import `powerbi/theme/loanlens_theme.json` (View > Themes > Browse for themes).
+
+Check the cards against the Reconciliation sheet of `docs/LoanLens_KPI_Workbook.xlsx`.
 
 ## Data quality
 
