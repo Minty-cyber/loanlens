@@ -1,0 +1,129 @@
+// LoanLens measures
+// ----------------------------------------------------------------------------
+// Every measure lives in a table called _Measures. Names match the report
+// (powerbi/LoanLens.pbix). Definitions, formats and caveats are in
+// docs/LoanLens_KPI_Workbook.xlsx (KPI Definitions sheet), and the expected
+// values to check against are on its Reconciliation sheet.
+//
+// Tables: load every parquet file in data/exports/.
+//
+// Relationships (many-to-one, single direction, dimension filters fact):
+//   fact_loans[date_key]                -> dim_date[date_key]
+//   fact_loans[grade_key]               -> dim_grade[grade_key]
+//   fact_loans[purpose_key]             -> dim_purpose[purpose_key]
+//   fact_loans[term_key]                -> dim_term[term_key]
+//   fact_loans[home_ownership_key]      -> dim_home_ownership[home_ownership_key]
+//   fact_loans[verification_status_key] -> dim_verification[verification_status_key]
+//   fact_loans[dti_band_key]            -> dim_dti_band[dti_band_key]
+//   fact_loans[income_band_key]         -> dim_income_band[income_band_key]
+//
+// data_quality_results is loaded on its own, with no relationships.
+//
+// Sort by column: dim_dti_band[dti_band] and dim_income_band[income_band] by
+// their sort_order column.
+// ----------------------------------------------------------------------------
+
+
+// ---- What-if parameters (Modeling > New parameter > Numeric range) ---------
+
+// Default Shock: percentage points added to every grade's default rate.
+// 0 to 5 points in steps of 0.5, default 0.
+Default Shock = GENERATESERIES ( 0, 0.05, 0.005 )
+
+// LGD: loss given default. ASSUMPTION: the data has no recoveries, so this is
+// an input, not a result. 30% to 90%, default 45%.
+LGD = GENERATESERIES ( 0.30, 0.90, 0.05 )
+
+
+// ---- Core -------------------------------------------------------------------
+
+// K01. Original amount applied for, not an outstanding balance. Format: $ whole number.
+Total Loan Amount =
+SUM ( fact_loans[requested_amount] )
+
+// K02. One row is one loan. Format: whole number.
+Loan Count =
+COUNTROWS ( fact_loans )
+
+// K03. Helper. default_flag is 1 for Charged Off, 0 for Fully Paid.
+Default Count =
+SUM ( fact_loans[default_flag] )
+
+// K04. Share of loans charged off. Counts loans, not money. Format: 0.0%.
+Default Rate =
+DIVIDE ( [Default Count], [Loan Count] )
+
+// K05. Unweighted average, divided by 100 so it formats as a percentage. Format: 0.0%.
+Average Interest Rate =
+DIVIDE ( AVERAGE ( fact_loans[interest_rate_pct] ), 100 )
+
+// K06. Format: $ whole number.
+Average Loan Amount =
+DIVIDE ( [Total Loan Amount], [Loan Count] )
+
+
+// ---- Portfolio quality ------------------------------------------------------
+
+// K07. Exposure that defaulted, not the actual loss (no recoveries in the data).
+Charged Off Amount =
+CALCULATE ( [Total Loan Amount], fact_loans[default_flag] = 1 )
+
+// K09. Simple average, leaving out loans flagged as DTI outliers. Format: 0.0.
+Average Debt To Income =
+CALCULATE (
+    AVERAGE ( fact_loans[debt_to_income_pct] ),
+    fact_loans[is_dti_outlier] = FALSE ()
+)
+
+// K10. The denominator ignores the Term slicer so the card still makes sense
+// when a term is selected. Format: 0.0%.
+60-Month Loan Share =
+DIVIDE (
+    CALCULATE ( [Loan Count], dim_term[term_months] = 60 ),
+    CALCULATE ( [Loan Count], REMOVEFILTERS ( dim_term ) )
+)
+
+
+// ---- Card display -----------------------------------------------------------
+
+// TO CONFIRM against the report: the exact DAX of these two card measures
+// could not be read from the .pbix. They show the amounts in short form.
+Total Loan Amount Card =
+[Total Loan Amount]
+
+Charged Off Amount Card =
+[Charged Off Amount]
+
+
+// ---- Stress test ------------------------------------------------------------
+
+// K12. Format: 0.0%.
+Default Shock Value =
+SELECTEDVALUE ( 'Default Shock'[Default Shock], 0 )
+
+// K13. Format: 0%.
+LGD Value =
+SELECTEDVALUE ( 'LGD'[LGD], 0.45 )
+
+// K14. Capped at 100%.
+Stressed Default Rate =
+MIN ( 1, [Default Rate] + [Default Shock Value] )
+
+// K15. Loan amount x default rate x LGD, grade by grade, then summed, so the
+// total equals the sum of the grade columns. An estimate, not a forecast.
+Base Expected Loss =
+SUMX (
+    VALUES ( dim_grade[credit_grade] ),
+    [Total Loan Amount] * [Default Rate] * [LGD Value]
+)
+
+// K16. Same as Base Expected Loss, using each grade's stressed default rate.
+Stressed Expected Loss =
+SUMX (
+    VALUES ( dim_grade[credit_grade] ),
+    [Total Loan Amount] * [Stressed Default Rate] * [LGD Value]
+)
+
+// K17.
+Expected Loss Increase =
+[Stressed Expected Loss] - [Base Expected Loss]
