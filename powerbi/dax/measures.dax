@@ -1,7 +1,8 @@
 // LoanLens measures
 // ----------------------------------------------------------------------------
 // Exported from powerbi/LoanLens.pbix with INFO.VIEW.MEASURES() and
-// INFO.VIEW.TABLES(), so names and expressions match the report exactly.
+// INFO.VIEW.TABLES() and INFO.VIEW.COLUMNS(), so names and expressions match
+// the report exactly.
 // Definitions and caveats are in docs/LoanLens_KPI_Workbook.xlsx (KPI
 // Definitions sheet), and the expected values are on its Reconciliation sheet.
 //
@@ -25,6 +26,22 @@
 // No format strings are set on the measures; number formats are set on the
 // visuals.
 // ----------------------------------------------------------------------------
+
+
+// ---- Calculated columns -----------------------------------------------------
+
+// Column in fact_loans. Readable loan reference for the Loan Risk Assessment
+// table and its search slicer, e.g. LN-265348.
+Loan Ref =
+"LN-" & FORMAT ( fact_loans[loan_id], "000000" )
+
+// Column in dim_grade. Each grade's default rate across the whole portfolio,
+// repeated on every sub-grade row. Calculated at refresh, so it ignores slicers.
+Grade PD =
+CALCULATE (
+    DIVIDE ( SUM ( fact_loans[default_flag] ), COUNTROWS ( fact_loans ) ),
+    ALLEXCEPT ( dim_grade, dim_grade[credit_grade] )
+)
 
 
 // ---- What-if parameters (Modeling > New parameter > Numeric range) ---------
@@ -164,3 +181,35 @@ SUMX (
 
 Expected Loss Increase =
 [Stressed Expected Loss] - [Base Expected Loss]
+
+
+// ---- Loan Risk Assessment (one row per loan) --------------------------------
+
+// Text label for the Outcome column.
+Outcome =
+VAR f = MAX ( fact_loans[default_flag] )
+RETURN
+    IF ( ISBLANK ( f ), BLANK (), IF ( f = 1, "Charged off", "Fully paid" ) )
+
+// Background colour for the Outcome column (conditional formatting > Field value).
+Outcome Colour =
+VAR f = MAX ( fact_loans[default_flag] )
+RETURN
+    IF ( ISBLANK ( f ), BLANK (), IF ( f = 1, "#FCA5A5", "#BBF7D0" ) )
+
+// Background colour for the Grade column, matching the risk bands:
+// A-B green (Low), C-D amber (Medium), E-G red (High).
+Grade Colour =
+SWITCH (
+    SELECTEDVALUE ( dim_grade[credit_grade] ),
+    "A", "#BBF7D0", "B", "#BBF7D0",
+    "C", "#FDE68A", "D", "#FDE68A",
+    "E", "#FCA5A5", "F", "#FCA5A5", "G", "#FCA5A5",
+    "#FFFFFF"
+)
+
+// One loan's expected loss: its amount x its grade's default rate x LGD.
+// Correct on a single-loan row only. On a total row MAX picks the highest
+// grade's rate, so turn totals off for this column.
+Loan Expected Loss =
+SUM ( fact_loans[requested_amount] ) * MAX ( dim_grade[Grade PD] ) * [LGD Value]
