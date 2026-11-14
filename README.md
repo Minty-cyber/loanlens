@@ -2,6 +2,8 @@
 
 An end-to-end analytics project: a quality-checked DuckDB warehouse (star schema, dbt-style SQL) feeding a four-page Power BI dashboard on loan portfolio performance and credit risk.
 
+**[View the live dashboard](https://app.powerbi.com/view?r=eyJrIjoiZjQxODJjMDItOTM0Ni00NTI0LTk1YjItNGMwNTdhYzZhNzA5IiwidCI6ImIyMGE4ZjRkLTBkNmEtNGYyZS04M2EyLTE4MWM5NjhmODg4MiIsImMiOjl9)** (Power BI, opens in the browser, no sign-in needed)
+
 ![Executive Summary page: loan count, total loan amount, average loan amount, default rate and average interest rate, with loans and default rate by issue year and loan amount by grade](docs/screenshots/executive_summary.png)
 
 <table>
