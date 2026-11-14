@@ -1,6 +1,8 @@
 # LoanLens: Loan Portfolio and Credit Risk Analytics
 
-An end-to-end analytics project: a quality-checked DuckDB warehouse (star schema, dbt-style SQL) feeding a three-page Power BI dashboard on loan portfolio performance and credit risk.
+An end-to-end analytics project: a quality-checked DuckDB warehouse (star schema, dbt-style SQL) feeding a four-page Power BI dashboard on loan portfolio performance and credit risk.
+
+**[View the live dashboard](https://app.powerbi.com/view?r=eyJrIjoiZjQxODJjMDItOTM0Ni00NTI0LTk1YjItNGMwNTdhYzZhNzA5IiwidCI6ImIyMGE4ZjRkLTBkNmEtNGYyZS04M2EyLTE4MWM5NjhmODg4MiIsImMiOjl9)** (Power BI, opens in the browser, no sign-in needed)
 
 ![Executive Summary page: loan count, total loan amount, average loan amount, default rate and average interest rate, with loans and default rate by issue year and loan amount by grade](docs/screenshots/executive_summary.png)
 
@@ -12,6 +14,12 @@ An end-to-end analytics project: a quality-checked DuckDB warehouse (star schema
   <tr>
     <td align="center"><b>Portfolio Quality</b></td>
     <td align="center"><b>Risk and Segments</b>, with the stress test</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/loan_risk_assessment.png" alt="Loan Risk Assessment page: a searchable table with one row per loan, showing outcome, amount, interest rate, grade, term, debt-to-income, purpose and expected loss"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><b>Loan Risk Assessment</b>, one row per loan</td>
   </tr>
 </table>
 
@@ -54,7 +62,7 @@ lending_club_loan_two.csv
   mart.data_quality_results          result of every quality check
         |
         v
-  Power BI (3 pages)       reads the mart tables from loanlens.duckdb
+  Power BI (4 pages)       reads the mart tables from loanlens.duckdb
                            (also exported to data/exports/*.parquet)
 ```
 
@@ -64,13 +72,14 @@ The SQL follows the dbt style: import CTEs at the top, one logical step per CTE,
 
 ## Dashboard
 
-Three pages, each with slicers for issue year, grade and term, and a page navigator.
+Four pages, each with slicers for issue year, grade and term, and a page navigator.
 
 1. **Executive Summary:** cards for total loan amount, loan count, average loan amount, default rate and average interest rate; loans issued and default rate by issue year (columns and line); loan amount by grade.
 2. **Portfolio Quality:** cards for default rate, charged-off loan amount, average debt-to-income and share of 60-month loans; default rate by loan term, debt-to-income band, income band and issue year.
 3. **Risk and Segments:** default rate by grade and by purpose; loan amount by purpose (treemap) to show where exposure is concentrated; loans by home ownership and by income verification; and the stress test, a column chart of base and stressed expected loss by grade, driven by two what-if sliders: default shock (0 to 5 points) and loss given default.
+4. **Loan Risk Assessment:** a table with one row per loan, searchable by loan reference: outcome, amount, interest rate, grade, term, debt-to-income, purpose and the loan's expected loss (its amount × its grade's default rate × loss given default). Outcome and grade are colour-coded, and expected loss has data bars.
 
-The issue-year charts include every cohort, so read 2014–2016 with the cohort caveat under [Assumptions and limitations](#assumptions-and-limitations). Every KPI, its DAX, the chart it feeds and its caveats are documented in [`docs/LoanLens_KPI_Workbook.xlsx`](docs/LoanLens_KPI_Workbook.xlsx), which also holds the expected values to reconcile against and a live Excel copy of the stress test. The wireframe came first, and the dashboard follows its layout.
+On the Portfolio Quality issue-year chart, 2015 and 2016 are faded because those cohorts are incomplete. Read 2014–2016 on any issue-year chart with the cohort caveat under [Assumptions and limitations](#assumptions-and-limitations). Every KPI, its DAX, the chart it feeds and its caveats are documented in [`docs/LoanLens_KPI_Workbook.xlsx`](docs/LoanLens_KPI_Workbook.xlsx), which also holds the expected values to reconcile against and a live Excel copy of the stress test. The wireframe came first, and the dashboard follows its layout.
 
 ## Folder structure
 
@@ -101,7 +110,7 @@ loanlens/
 │   └── run_pipeline.py
 ├── src/loanlens/                 package entry point
 ├── powerbi/
-│   ├── LoanLens.pbix             the three-page report
+│   ├── LoanLens.pbix             the four-page report
 │   ├── dax/measures.dax          every measure, relationship and what-if parameter
 │   └── theme/loanlens_theme.json report theme
 └── docs/
